@@ -1,0 +1,21 @@
+# env
+.env
+
+# python
+__pycache__/
+*.pyc
+
+# django
+db.sqlite3
+media/
+
+# virtualenv
+venv/
+env/
+
+# node
+node_modules/
+
+# build
+dist/
+build/
