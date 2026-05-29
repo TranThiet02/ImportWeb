@@ -141,7 +141,7 @@ def invoice_detail(request, pk):
 @permission_classes([IsAuthenticated])
 def company_list(request):
     if request.method == 'GET':
-        search    = request.query_params.get('search', None)
+        search = request.query_params.get('search', None)
         companies = Company.objects.all()
         if search:
             companies = companies.filter(name__icontains=search)
