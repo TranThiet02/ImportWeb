@@ -6,34 +6,27 @@ import json
 
 @shared_task(bind=True, max_retries=3)
 def run_ocr_task(self, invoice_id):
-    try:
-        invoice = InvoiceNew.objects.get(id=invoice_id)
+    try: 
+        try:
+            invoice = InvoiceNew.objects.get(id=invoice_id)
+        except InvoiceNew.DoesNotExist:
+            return {'status': 'error', 'message': 'Invoice not found'}
+
+        if invoice.source != 'ai':
+            return {'status': 'error', 'message': 'Invalid source'}
+
+        if invoice.ocr_status not in ['pending', 'failed']:
+            return {'status': 'skip', 'message': 'Already processed'}
 
         invoice.ocr_status = 'processing'
         invoice.save()
 
         result = run_ocr_pipeline(invoice.file.path)
-        
-        print("OCR Result:")
-        print(json.dumps(result['detail'], ensure_ascii=False, indent=2))
-
         invoice.ocr_result = result
         invoice.ocr_status = 'done'
-        invoice.document_type = result.get('document_type', 'invoice')
-
-        company_name = result.get('company_name', '').strip()
-        if company_name:
-            company, _ = Company.objects.get_or_create(name=company_name)
-            invoice.company = company
-
         invoice.save()
 
-        detail_data = result.get('detail', {})
-        if detail_data:
-            _fill_vat_detail(invoice, detail_data)
-
         return {'status': 'success', 'invoice_id': invoice_id}
-
     except Exception as e:
         try:
             raise self.retry(exc=e, countdown=60)

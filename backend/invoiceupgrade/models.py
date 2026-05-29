@@ -1,22 +1,35 @@
 from django.db import models
 from accounts.models import Users
-import os
-
-def invoice_upload_path(instance, filename):
-    ext = os.path.splitext(filename)[1].lower()
-    folder = 'pdf' if ext == '.pdf' else 'images'
-    return f'invoices/user_{instance.uploaded_by.id}/{folder}/{filename}'
+from django.core.exceptions import ValidationError
+import os, magic, uuid
 
 def validate_file_type(value):
-    from django.core.exceptions import ValidationError
     allowed = ['.pdf', '.jpg', '.jpeg', '.png']
     ext = os.path.splitext(value.name)[1].lower()
     if ext not in allowed:
         raise ValidationError(f'Chỉ chấp nhận: {", ".join(allowed)}')
+    
+    max_size = 10 * 1024 * 1024
+    if value.size > max_size:
+        raise ValidationError('File không được vượt quá 10MB')
+    file_mime = magic.from_buffer(value.read(2048), mime=True)
+    value.seek(0)
+
+    allowed_mimes = ['image/jpeg', 'image/png', 'application/pdf']
+    if file_mime not in allowed_mimes:
+        raise ValidationError(f'File không hợp lệ. Loại file thực: {file_mime}')
+
+    return value
+
+def invoice_upload_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower()
+    new_filename = f"{uuid.uuid4().hex}{ext}"
+    folder = 'pdf' if ext == '.pdf' else 'images'
+    return f'invoices/user_{instance.uploaded_by.id}/{folder}/{new_filename}'
 
 class Company(models.Model):
-    name       = models.CharField(max_length=255, unique=True)
-    tax_code   = models.CharField(max_length=50, blank=True, default='')
+    name = models.CharField(max_length=255, unique=True)
+    tax_code = models.CharField(max_length=50, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -41,7 +54,7 @@ class InvoiceNew(models.Model):
     
     class Source(models.TextChoices):
         MANUAL = 'manual', 'Nhập thủ công'
-        AI     = 'ai',     'Import AI'
+        AI = 'ai', 'Import AI'
         GEMINI = 'gemini', 'Google Gemini'
 
     uploaded_by = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='invoices_upgrades')

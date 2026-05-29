@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.http import FileResponse, Http404
 import json
 from .models import InvoiceNew, Company
 from .serializers import InvoiceNewSerializer, CompanySerializer
@@ -177,3 +178,22 @@ def company_detail(request, pk):
     elif request.method == 'DELETE':
         company.delete()
         return Response({'message': 'Đã xóa'}, status=status.HTTP_204_NO_CONTENT)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def serve_invoice_file(request, pk):
+    try:
+        invoice = InvoiceNew.objects.get(pk=pk, uploaded_by=request.user)
+    except InvoiceNew.DoesNotExist:
+        raise Http404("Không tìm thấy file")
+
+    file_path = invoice.file.path
+    if not os.path.exists(file_path):
+        raise Http404("File không tồn tại")
+
+    response = FileResponse(open(file_path, 'rb'), as_attachment=False)
+
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Content-Security-Policy'] = "default-src 'none'"
+
+    return response

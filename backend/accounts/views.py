@@ -3,14 +3,19 @@ from google.auth.transport import requests as google_requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-class GoogleLogin(APIView):
-    permission_classes = []
+class LoginRateThrottle(AnonRateThrottle):
+    rate = '5/minute'
+    scope = 'login'
 
+class GoogleLogin(APIView):
+    throttle_classes = [LoginRateThrottle]
+    permission_classes = []
     def post(self, request):
         credential = request.data.get('credential')
         if not credential:
