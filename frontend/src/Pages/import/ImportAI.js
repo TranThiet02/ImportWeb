@@ -1,8 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
-import {fetchAIInvoices, createAIInvoice, fetchAIOcrStatus, deleteAIInvoice} from '../../reducer/invoiceai/InvoiceAIActions'
+import {fetchAIInvoices, createAIInvoice, fetchAIOcrStatus, deleteAIInvoice, createAIBatch} from '../../reducer/invoiceai/InvoiceAIActions'
 import '../../css/import.css'
+import { buildMediaUrl } from '../../config/api'
+import ConfidenceBadge from '../../component/ConfidenceBadge'
+import QualityCheckAll from '../../component/QualityCheckAll'
+import { qualityCheckAll } from '../../reducer/invoicesupgrade/InvoiceActions'
+import BatchUpload from '../../component/BatchUpload'
 
 const ImportAI = (props) => {
     const { aiInvoices } = props
@@ -14,10 +19,40 @@ const ImportAI = (props) => {
     const [submitting, setSubmitting] = useState(false)
     const [message, setMessage] = useState({ text: '', type: '' })
     const [ocrLoading, setOcrLoading] = useState(false)
+    const [autoSaveCount, setAutoSaveCount] = useState(0)
+    const [manualCheckCount, setManualCheckCount] = useState(0)
+    const [qcAllResult, setQcAllResult] = useState(null)
+    const [showQCAll, setShowQCAll] = useState(false)
+    const [checkingAll, setCheckingAll] = useState(false)
+    const [showBatch, setShowBatch] = useState(false)
 
     useEffect(() => {
         props.fetchAIInvoices()
     }, [])
+
+    useEffect(() => {
+        if (aiInvoices && aiInvoices.length > 0) {
+            const autoSave = aiInvoices.filter(
+                inv => inv.ocr_result?.auto_saved === true
+            ).length
+            const manualCheck = aiInvoices.filter(
+                inv => inv.ocr_result?.auto_saved === false
+                && inv.ocr_result
+            ).length
+            setAutoSaveCount(autoSave)
+            setManualCheckCount(manualCheck)
+        }
+    }, [aiInvoices])
+
+    const handleQCAll = async () => {
+        setCheckingAll(true)
+        const result = await props.qualityCheckAll('ai')
+        setCheckingAll(false)
+        if (result.success) {
+            setQcAllResult(result.data)
+            setShowQCAll(true)
+        }
+    }
 
     const handleFile = (selectedFile) => {
         if (!selectedFile) return
@@ -66,29 +101,81 @@ const ImportAI = (props) => {
 
         if (result.success) {
             const invoiceId = result.data?.id
-            setMessage({ text: 'Upload thành công! AI đang phân tích...', type: 'success' })
+            setMessage({
+                text: 'Upload thành công! YOLO đang phân tích...',
+                type: 'success'
+            })
             handleReset()
             setOcrLoading(true)
 
-            const poll = setInterval(async () => {
-                const status = await props.fetchAIOcrStatus(invoiceId)
-                if (!status) return clearInterval(poll)
+            let pollCount = 0
+            const maxPolls = 60
+            const startTime = Date.now()
 
-                if (status.ocr_status === 'done') {
+            const poll = setInterval(async () => {
+                pollCount++
+                try {
+                    const status = await props.fetchAIOcrStatus(invoiceId)
+                    if (!status) {
+                        console.log('Không có response từ server')
+                        return
+                    }
+
+                    if (status.ocr_status === 'done') {
+                        clearInterval(poll)
+                        setOcrLoading(false)
+
+                        const confidence = status.invoice?.ocr_result?.confidence_score
+                        const autoSaved = status.invoice?.ocr_result?.auto_saved
+
+                        console.log(`OCR DONE - Confidence: ${confidence}%, AutoSaved: ${autoSaved}`)
+
+                        if (autoSaved) {
+                            setMessage({
+                                text: `Tự động lưu thành công (độ tin cậy ${confidence}%)!`,
+                                type: 'success'
+                            })
+                        } else {
+                            setMessage({
+                                text: `YOLO đọc xong (${confidence}%). Vào chi tiết để xem và chỉnh sửa.`,
+                                type: 'warning'
+                            })
+                        }
+
+                        props.fetchAIInvoices()
+                    } else if (status.ocr_status === 'failed') {
+                        clearInterval(poll)
+                        setOcrLoading(false)
+                        console.log('OCR FAILED')
+                        setMessage({
+                            text: 'YOLO đọc thất bại. Vui lòng nhập thủ công.',
+                            type: 'error'
+                        })
+                        props.fetchAIInvoices()
+                    } else {
+                        console.log(`Trạng thái: ${status.ocr_status}`)
+                    }
+
+                } catch (error) {
+                    console.error(`Poll error:`, error)
+                    setMessage({
+                        text: `Lỗi khi kiểm tra trạng thái: ${error.message}`,
+                        type: 'error'
+                    })
+                }
+
+                if (pollCount >= maxPolls) {
                     clearInterval(poll)
                     setOcrLoading(false)
-                    setMessage({ text: 'AI đọc xong! Vào chi tiết để xem và chỉnh sửa.', type: 'success' })
-                    props.fetchAIInvoices()
-                } else if (status.ocr_status === 'failed') {
-                    clearInterval(poll)
-                    setOcrLoading(false)
-                    setMessage({ text: 'AI đọc thất bại, nhập thủ công.', type: 'error' })
+                    console.log('TIMEOUT - OCR quá lâu')
+                    setMessage({
+                        text: 'OCR quá lâu (>3 phút). Vui lòng thử lại hoặc nhập thủ công.',
+                        type: 'error'
+                    })
                     props.fetchAIInvoices()
                 }
             }, 3000)
 
-            // Dừng polling sau 5 phút
-            setTimeout(() => clearInterval(poll), 300000)
         } else {
             setMessage({ text: 'Upload thất bại!', type: 'error' })
         }
@@ -102,10 +189,10 @@ const ImportAI = (props) => {
 
     const getOcrBadge = (status) => {
         const map = {
-            done:       { class: 'ocr-badge done',       label: '✓ Done' },
-            failed:     { class: 'ocr-badge failed',     label: '✕ Failed' },
-            processing: { class: 'ocr-badge processing', label: '⟳ Processing' },
-            pending:    { class: 'ocr-badge pending',    label: '⏳ Pending' },
+            done: { class: 'ocr-badge done', label: 'Done' },
+            failed: { class: 'ocr-badge failed', label: 'Failed' },
+            processing: { class: 'ocr-badge processing', label: 'Processing' },
+            pending: { class: 'ocr-badge pending', label: 'Pending' },
         }
         return map[status] || map.pending
     }
@@ -117,12 +204,27 @@ const ImportAI = (props) => {
                     <span className="import-invoice-number">
                         Import <span>AI</span>
                     </span>
-                    <span className="import-status-badge">YOLO + PaddleOCR</span>
+                    <span className="import-status-badge">YOLO + EassyOCR</span>
                 </div>
                 <div className="import-header-right">
-                    <button className="btn-reset" onClick={handleReset}>
-                        ✕ Xóa
+                    <button
+                        className={`btn-batch ${showBatch ? 'active' : ''}`}
+                        onClick={() => setShowBatch(prev => !prev)}
+                    >
+                        {showBatch ? 'Đơn lẻ' : 'Nhiều file'}
                     </button>
+                    <button
+                        className="btn-qc-all"
+                        onClick={handleQCAll}
+                        disabled={checkingAll}
+                    >
+                        {checkingAll
+                            ? 'Đang kiểm tra...'
+                            : 'Kiểm tra tất cả'}
+                    </button>
+                    {/* <button className="btn-reset" onClick={handleReset}>
+                        Xóa
+                    </button> */}
                     <button
                         className="btn-save"
                         onClick={handleSubmit}
@@ -201,13 +303,35 @@ const ImportAI = (props) => {
                     )}
                 </div>
             </div>
-
-            {/* <div className="import-table-card">
+            {showBatch ? (
+                <BatchUpload
+                    source="ai"
+                    onBatchSubmit={props.createAIBatch}
+                    fetchInvoices={props.fetchAIInvoices}
+                    pollStatus={props.fetchAIOcrStatus}
+                    onComplete={() => props.fetchAIInvoices()}
+                />
+            ) : (
+                <div className="import-card">...</div>
+            )}
+            <div className="import-table-card">
                 <div className="import-table-header">
                     <div className="import-table-title">
                         Danh Sách Import bằng AI
                     </div>
-                    <span className="import-count-badge">{aiInvoices.length} hóa đơn</span>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        {autoSaveCount > 0 && (
+                            <span style={{ fontSize: '13px', color: '#6b7280', marginRight: '12px' }}>
+                                Tự động: <strong>{autoSaveCount}</strong>
+                            </span>
+                        )}
+                        {manualCheckCount > 0 && (
+                            <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                                Cần xem: <strong>{manualCheckCount}</strong>
+                            </span>
+                        )}
+                        <span className="import-count-badge">{aiInvoices.length} hóa đơn</span>
+                    </div>
                 </div>
                 <table className="import-table">
                     <thead>
@@ -215,9 +339,9 @@ const ImportAI = (props) => {
                             <th>#</th>
                             <th>Công Ty</th>
                             <th>Ghi chú</th>
+                            <th>Confidence</th>
                             <th>OCR Status</th>
                             <th>Ngày tạo</th>
-                            <th>File</th>
                             <th>Thao Tác</th>
                         </tr>
                     </thead>
@@ -237,6 +361,12 @@ const ImportAI = (props) => {
                                         <td className="company-name">
                                             {inv.company_detail?.name || '—'}
                                         </td>
+                                         <td>
+                                            <ConfidenceBadge
+                                                confidence={inv.ocr_result?.confidence_score}
+                                                autoSaved={inv.ocr_result?.auto_saved}
+                                            />
+                                        </td>
                                         <td>{inv.note || '—'}</td>
                                         <td>
                                             <span className={badge.class}>
@@ -244,16 +374,16 @@ const ImportAI = (props) => {
                                             </span>
                                         </td>
                                         <td>{new Date(inv.created_at).toLocaleDateString('vi-VN')}</td>
-                                        <td>
+                                        {/* <td>
                                             <a
-                                                href={`http://localhost:8000${inv.file}`}
+                                                href={buildMediaUrl(inv.file)}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="btn-view"
                                             >
                                                 File
                                             </a>
-                                        </td>
+                                        </td> */}
                                         <td>
                                             <Link
                                                 to={`/invoicedetail/${inv.id}`}
@@ -275,7 +405,17 @@ const ImportAI = (props) => {
                         )}
                     </tbody>
                 </table>
-            </div> */}
+            </div>
+            {showQCAll && qcAllResult && (
+                <QualityCheckAll
+                    result={qcAllResult}
+                    onClose={() => setShowQCAll(false)}
+                    onRecheck={async () => {
+                        const result = await props.qualityCheckAll('ai')
+                        if (result.success) setQcAllResult(result.data)
+                    }}
+                />
+            )}
         </div>
     )
 }
@@ -287,4 +427,5 @@ const mapStateToProps = (state) => ({
 export default connect(mapStateToProps, {
     fetchAIInvoices, createAIInvoice,
     fetchAIOcrStatus, deleteAIInvoice,
+    qualityCheckAll, createAIBatch,
 })(ImportAI)

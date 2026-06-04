@@ -1,34 +1,66 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
-import {
-    fetchGeminiInvoices, createGeminiInvoice,
-    fetchGeminiOcrStatus, deleteGeminiInvoice
-} from '../../reducer/invoicegemini/InvoiceGeminiActions'
+import {fetchGeminiInvoices, createGeminiInvoice, fetchGeminiOcrStatus, deleteGeminiInvoice, createGeminiBatch} from '../../reducer/invoicegemini/InvoiceGeminiActions'
 import '../../css/import.css'
+import { buildMediaUrl } from '../../config/api'
+import ConfidenceBadge from '../../component/ConfidenceBadge'
+import QualityCheckAll from '../../component/QualityCheckAll'
+import { qualityCheckAIInvoice } from '../../reducer/invoiceai/InvoiceAIActions'
+import { qualityCheckAll } from '../../reducer/invoicesupgrade/InvoiceActions'
+import BatchUpload from '../../component/BatchUpload'
 
 const DOCUMENT_TYPES = [
-    { value: 'invoice',   label: 'Hóa đơn' },
-    { value: 'receipt',   label: 'Phiếu thu' },
-    { value: 'payment',   label: 'Phiếu chi' },
+    { value: 'invoice', label: 'Hóa đơn' },
+    { value: 'receipt', label: 'Phiếu thu' },
+    { value: 'payment', label: 'Phiếu chi' },
     { value: 'warehouse', label: 'Phiếu nhập kho' },
 ]
 
 const ImportGemini = (props) => {
     const { geminiInvoices } = props
-
-    const [file,       setFile]       = useState(null)
-    const [preview,    setPreview]    = useState(null)
-    const [dragOver,   setDragOver]   = useState(false)
-    const [note,       setNote]       = useState('')
-    const [docType,    setDocType]    = useState('invoice')
+    const [showBatch, setShowBatch] = useState(false)
+    const [file, setFile] = useState(null)
+    const [preview, setPreview] = useState(null)
+    const [dragOver, setDragOver] = useState(false)
+    const [note, setNote] = useState('')
+    const [docType, setDocType] = useState('invoice')
     const [submitting, setSubmitting] = useState(false)
     const [ocrLoading, setOcrLoading] = useState(false)
-    const [message,    setMessage]    = useState({ text: '', type: '' })
+    const [message, setMessage] = useState({ text: '', type: '' })
+    const [autoSaveCount, setAutoSaveCount] = useState(0)
+    const [manualCheckCount, setManualCheckCount] = useState(0)
+    const [qcAllResult, setQcAllResult] = useState(null)
+    const [showQCAll, setShowQCAll] = useState(false)
+    const [checkingAll, setCheckingAll] = useState(false)
 
     useEffect(() => {
         props.fetchGeminiInvoices()
     }, [])
+
+    useEffect(() => {
+        if (geminiInvoices && geminiInvoices.length > 0) {
+            const autoSave = geminiInvoices.filter(
+                inv => inv.ocr_result?.auto_saved === true
+            ).length
+            const manualCheck = geminiInvoices.filter(
+                inv => inv.ocr_result?.auto_saved === false
+                && inv.ocr_result
+            ).length
+            setAutoSaveCount(autoSave)
+            setManualCheckCount(manualCheck)
+        }
+    }, [geminiInvoices])
+
+    const handleQCAll = async () => {
+        setCheckingAll(true)
+        const result = await props.qualityCheckAll('gemini')
+        setCheckingAll(false)
+        if (result.success) {
+            setQcAllResult(result.data)
+            setShowQCAll(true)
+        }
+    }
 
     const handleFile = (selectedFile) => {
         if (!selectedFile) return
@@ -66,10 +98,10 @@ const ImportGemini = (props) => {
         }
 
         const formData = new FormData()
-        formData.append('file',          file)
-        formData.append('note',          note)
+        formData.append('file', file)
+        formData.append('note', note)
         formData.append('document_type', docType)
-        formData.append('detail_data',   JSON.stringify({}))
+        formData.append('detail_data', JSON.stringify({}))
 
         setSubmitting(true)
         const result = await props.createGeminiInvoice(formData)
@@ -81,7 +113,6 @@ const ImportGemini = (props) => {
             handleReset()
             setOcrLoading(true)
 
-            // Polling mỗi 3 giây
             const poll = setInterval(async () => {
                 const status = await props.fetchGeminiOcrStatus(invoiceId)
                 if (!status) return clearInterval(poll)
@@ -89,6 +120,19 @@ const ImportGemini = (props) => {
                 if (status.ocr_status === 'done') {
                     clearInterval(poll)
                     setOcrLoading(false)
+                    const confidence = status.invoice?.ocr_result?.confidence_score
+                    const autoSaved = status.invoice?.ocr_result?.auto_saved
+                    if (autoSaved) {
+                        setMessage({
+                            text: `Tự động lưu thành công (độ tin cậy ${confidence}%)!`,
+                            type: 'success'
+                        })
+                    } else {
+                        setMessage({
+                            text: `Gemini đọc xong (${confidence}%). Vào chi tiết để xem và chỉnh sửa.`,
+                            type: 'warning'
+                        })
+                    }
                     setMessage({ text: 'Gemini đọc xong! Vào chi tiết để xem và chỉnh sửa.', type: 'success' })
                     props.fetchGeminiInvoices()
                 } else if (status.ocr_status === 'failed') {
@@ -113,18 +157,16 @@ const ImportGemini = (props) => {
 
     const getOcrBadge = (status) => {
         const map = {
-            done:       { cls: 'ocr-badge done',       label: '✓ Done' },
-            failed:     { cls: 'ocr-badge failed',     label: '✕ Failed' },
-            processing: { cls: 'ocr-badge processing', label: '⟳ Processing' },
-            pending:    { cls: 'ocr-badge pending',    label: 'Pending' },
+            done: { cls: 'ocr-badge done', label: 'Done' },
+            failed: { cls: 'ocr-badge failed', label: 'Failed' },
+            processing: { cls: 'ocr-badge processing', label: 'Processing' },
+            pending: { cls: 'ocr-badge pending', label: 'Pending' },
         }
         return map[status] || map.pending
     }
 
     return (
         <div className="import-page">
-
-            {/* ── Header ── */}
             <div className="import-header">
                 <div className="import-header-left">
                     <span className="import-invoice-number">
@@ -133,7 +175,22 @@ const ImportGemini = (props) => {
                     <span className="import-status-badge">Google Gemini Vision</span>
                 </div>
                 <div className="import-header-right">
-                    <button className="btn-reset" onClick={handleReset}>✕ Xóa</button>
+                    <button
+                        className={`btn-batch ${showBatch ? 'active' : ''}`}
+                        onClick={() => setShowBatch(prev => !prev)}
+                    >
+                        {showBatch ? 'Đơn lẻ' : 'Nhiều file'}
+                    </button>
+                    <button
+                        className="btn-qc-all"
+                        onClick={handleQCAll}
+                        disabled={checkingAll}
+                    >
+                        {checkingAll
+                            ? 'Đang kiểm tra...'
+                            : 'Kiểm tra tất cả'}
+                    </button>
+                    {/* <button className="btn-reset" onClick={handleReset}>Xóa</button> */}
                     <button
                         className="btn-save"
                         onClick={handleSubmit}
@@ -146,14 +203,12 @@ const ImportGemini = (props) => {
                 </div>
             </div>
 
-            {/* ── Alert ── */}
             {message.text && (
                 <div className={`import-alert ${message.type}`}>
                     {message.text}
                 </div>
             )}
 
-            {/* ── OCR Loading ── */}
             {ocrLoading && (
                 <div className="ocr-loading-bar">
                     <div className="ocr-loading-inner"></div>
@@ -248,11 +303,38 @@ const ImportGemini = (props) => {
             </div>
 
             {/* ── Danh sách ── */}
-            {/* <div className="import-table-card">
+            <div className="import-table-card">
                 <div className="import-table-header">
-                    <div className="import-table-title">✨ Danh Sách Import Gemini</div>
-                    <span className="import-count-badge">{geminiInvoices.length} hóa đơn</span>
+                    <div className="import-table-title">Danh Sách Import bằng AI</div>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                            {autoSaveCount > 0 && (
+                                <span style={{ marginRight: '12px' }}>
+                                    Tự động: <strong>{autoSaveCount}</strong>
+                                </span>
+                            )}
+                            {manualCheckCount > 0 && (
+                                <span>
+                                    Cần xem: <strong>{manualCheckCount}</strong>
+                                </span>
+                            )}
+                        </div>
+                        <span className="import-count-badge">
+                            {geminiInvoices.length} hóa đơn
+                        </span>
+                    </div>
                 </div>
+                {showBatch ? (
+                    <BatchUpload
+                        source="gemini"
+                        onBatchSubmit={props.createGeminiBatch}
+                        fetchInvoices={props.fetchGeminiInvoices}
+                        pollStatus={props.fetchGeminiOcrStatus}
+                        onComplete={() => props.fetchGeminiInvoices()}
+                    />
+                ) : (
+                    <div className="import-card">...</div>
+                )}
                 <table className="import-table">
                     <thead>
                         <tr>
@@ -260,9 +342,9 @@ const ImportGemini = (props) => {
                             <th>Công Ty</th>
                             <th>Loại</th>
                             <th>Ghi chú</th>
+                            <th>Confidence</th> 
                             <th>Gemini Status</th>
                             <th>Ngày tạo</th>
-                            <th>File</th>
                             <th>Thao Tác</th>
                         </tr>
                     </thead>
@@ -270,7 +352,7 @@ const ImportGemini = (props) => {
                         {geminiInvoices.length === 0 ? (
                             <tr>
                                 <td colSpan="8" className="import-table-empty">
-                                    📭 Chưa có hóa đơn nào
+                                    Chưa có hóa đơn nào
                                 </td>
                             </tr>
                         ) : (
@@ -288,6 +370,22 @@ const ImportGemini = (props) => {
                                             </span>
                                         </td>
                                         <td>{inv.note || '—'}</td>
+                                        {/* <td>
+                                            <ConfidenceBadge
+                                                confidence={inv.ocr_result?.confidence_score}
+                                                autoSaved={inv.ocr_result?.auto_saved}
+                                            />
+                                        </td> */}
+                                        <td>
+                                            {inv.ocr_result ? (
+                                                <>
+                                                    <ConfidenceBadge
+                                                        confidence={inv.ocr_result.confidence_score}
+                                                        autoSaved={inv.ocr_result.auto_saved}
+                                                    />
+                                                </>
+                                            ) : '—'}
+                                        </td>
                                         <td>
                                             <span className={badge.cls}>
                                                 {badge.label}
@@ -295,28 +393,18 @@ const ImportGemini = (props) => {
                                         </td>
                                         <td>{new Date(inv.created_at).toLocaleDateString('vi-VN')}</td>
                                         <td>
-                                            <a
-                                                href={`http://localhost:8000${inv.file}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="btn-view"
-                                            >
-                                                📄 File
-                                            </a>
-                                        </td>
-                                        <td>
                                             <Link
                                                 to={`/invoicedetail/${inv.id}`}
                                                 className="btn-view"
                                                 style={{ marginRight: '6px' }}
                                             >
-                                                👁 Xem
+                                                Xem
                                             </Link>
                                             <button
                                                 className="btn-del"
                                                 onClick={() => handleDelete(inv.id)}
                                             >
-                                                🗑 Xóa
+                                                Xóa
                                             </button>
                                         </td>
                                     </tr>
@@ -325,7 +413,17 @@ const ImportGemini = (props) => {
                         )}
                     </tbody>
                 </table>
-            </div> */}
+            </div>
+            {showQCAll && qcAllResult && (
+                <QualityCheckAll
+                    result={qcAllResult}
+                    onClose={() => setShowQCAll(false)}
+                    onRecheck={async () => {
+                        const result = await props.qualityCheckAll('gemini')
+                        if (result.success) setQcAllResult(result.data)
+                    }}
+                />
+            )}
         </div>
     )
 }
@@ -337,4 +435,5 @@ const mapStateToProps = (state) => ({
 export default connect(mapStateToProps, {
     fetchGeminiInvoices, createGeminiInvoice,
     fetchGeminiOcrStatus, deleteGeminiInvoice,
+    qualityCheckAll, createGeminiBatch,
 })(ImportGemini)

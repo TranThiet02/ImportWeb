@@ -163,12 +163,29 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-# Content Security Policy
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = ("'self'", "'unsafe-inline'")
-CSP_STYLE_SRC = ("'self'", "'unsafe-inline'")
-CSP_IMG_SRC = ("'self'", "data:", "blob:")
-CSP_CONNECT_SRC = ("'self'", "http://localhost:8000", "https://accounts.google.com")
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": (
+            "'self'",
+            "'unsafe-inline'",
+        ),
+        "style-src": (
+            "'self'",
+            "'unsafe-inline'",
+        ),
+        "img-src": (
+            "'self'",
+            "data:",
+            "blob:",
+        ),
+        "connect-src": (
+            "'self'",
+            "http://localhost:8000",
+            "https://accounts.google.com",
+        ),
+    }
+}
 
 # rest-framework
 REST_FRAMEWORK = {

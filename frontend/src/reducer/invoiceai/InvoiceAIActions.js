@@ -1,7 +1,8 @@
 import TYPE from '../Type'
 import axios from 'axios'
+import { buildApiUrl } from '../../config/api'
 
-const BASE_URL = 'http://localhost:8000/api/ai'
+const BASE_URL = buildApiUrl('/api/ai')
 
 const authHeader = () => ({
     headers: {
@@ -12,7 +13,6 @@ const authHeader = () => ({
 export const fetchAIInvoices = () => async dispatch => {
     try {
         const res = await axios.get(`${BASE_URL}/invoices-ai/`, authHeader())
-        console.log(res)
         dispatch({ type: TYPE.FETCH_AI_INVOICES_SUCCESS, payload: res.data })
     } catch {
         dispatch({ type: TYPE.FETCH_AI_INVOICES_FAIL })
@@ -54,5 +54,47 @@ export const deleteAIInvoice = (id) => async dispatch => {
         dispatch({ type: TYPE.DELETE_AI_INVOICE_SUCCESS, payload: id })
     } catch {
         dispatch({ type: TYPE.DELETE_AI_INVOICE_FAIL })
+    }
+}
+
+export const qualityCheckAIInvoice = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoices-ai/${id}/quality-check/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const verifyAIInvoiceImage = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoices-ai/${id}/verify/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const createAIBatch = (formData) => async dispatch => {
+    try {
+        const res = await axios.post(
+            `${BASE_URL}/invoices-ai/batch/`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access')}`,
+                    'Content-Type': 'multipart/form-data',
+                }
+            }
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
     }
 }

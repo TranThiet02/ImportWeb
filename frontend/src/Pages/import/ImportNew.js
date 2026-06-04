@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { connect } from 'react-redux'
-import {fetchCompanies, fetchInvoices, createInvoice, deleteInvoice} from '../../reducer/invoicesupgrade/InvoiceActions'
+import {fetchCompanies, fetchInvoices, createInvoice, deleteInvoice, qualityCheckAll} from '../../reducer/invoicesupgrade/InvoiceActions'
 import '../../css/import.css'
 import { Link } from 'react-router-dom'
+import QualityCheckAll from '../../component/QualityCheckAll'
 
 const DOCUMENT_TYPES = [
     { value: 'invoice', label: 'Hóa đơn' },
@@ -13,15 +14,15 @@ const DOCUMENT_TYPES = [
 
 const DETAIL_FIELDS = {
     invoice: [
-        { name: 'invoice_date',   label: 'Ngày',            type: 'date'   },
-        { name: 'seller_name',    label: 'Tên cửa hàng',    type: 'text'   },
+        { name: 'invoice_date', label: 'Ngày', type: 'date'   },
+        { name: 'seller_name', label: 'Tên cửa hàng', type: 'text'   },
         { name: 'payment_method', label: 'Phương thức TT',  type: 'text'   },
-        { name: 'subtotal',       label: 'Tạm tính',        type: 'number' },
-        { name: 'total_discount', label: 'Tổng giảm giá',   type: 'number' },
-        { name: 'tax_amount',     label: 'Thuế',            type: 'number' },
-        { name: 'total_amount',   label: 'Tổng tiền',       type: 'number' },
-        { name: 'received_amount',label: 'Tiền khách đưa',  type: 'number' },
-        { name: 'change_amount',  label: 'Tiền thừa',       type: 'number' },
+        { name: 'subtotal', label: 'Tạm tính', type: 'number' },
+        { name: 'total_discount', label: 'Tổng giảm giá', type: 'number' },
+        { name: 'tax_amount', label: 'Thuế', type: 'number' },
+        { name: 'total_amount', label: 'Tổng tiền', type: 'number' },
+        { name: 'received_amount',label: 'Tiền khách đưa', type: 'number' },
+        { name: 'change_amount', label: 'Tiền thừa', type: 'number' },
     ],
     receipt: [
         { name: 'invoice_code', label: 'Số phiếu', type: 'text' },
@@ -76,6 +77,9 @@ const Import = (props) => {
     const [preview, setPreview] = useState(null)
     const [dragOver, setDragOver] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+    const [qcAllResult, setQcAllResult] = useState(null)
+    const [showQCAll,   setShowQCAll] = useState(false)
+    const [checkingAll, setCheckingAll] = useState(false)
     const [message, setMessage] = useState({ text: '', type: '' })
 
     useEffect(() => {
@@ -87,6 +91,16 @@ const Import = (props) => {
         setDetailData({})
         setItems([{ ...DEFAULT_ITEM }])
     }, [documentType])
+
+    const handleQCAll = async () => {
+        setCheckingAll(true)
+        const result = await props.qualityCheckAll('manual')
+        setCheckingAll(false)
+        if (result.success) {
+            setQcAllResult(result.data)
+            setShowQCAll(true)
+        }
+    }
 
     const handleFile = (selectedFile) => {
         if (!selectedFile) return
@@ -198,8 +212,17 @@ const Import = (props) => {
                     <span className="import-status-badge">New</span>
                 </div>
                 <div className="import-header-right">
+                    <button
+                        className="btn-qc-all"
+                        onClick={handleQCAll}
+                        disabled={checkingAll}
+                    >
+                        {checkingAll
+                            ? 'Đang kiểm tra...'
+                            : 'Kiểm tra tất cả'}
+                    </button>
                     <button className="btn-reset" onClick={handleReset}>
-                        ✕ Xóa Form
+                        Xóa Form
                     </button>
                     <button className="btn-save" onClick={handleSubmit} disabled={submitting}>
                         {submitting ? 'Đang lưu...' : 'Lưu'}
@@ -275,7 +298,7 @@ const Import = (props) => {
                                         + Thêm hàng
                                     </button>
                                 </div>
-                                <div className="item-row item-row-header">
+                                <div className={`item-row item-row-header ${documentType === 'invoice' ? 'item-row-invoice' : 'item-row-warehouse'}`}>
                                     <span>Tên hàng</span>
                                     <span>ĐVT</span>
                                     <span>SL</span>
@@ -418,7 +441,6 @@ const Import = (props) => {
                             <th>Ghi chú</th>
                             {/* <th>OCR</th> */}
                             <th>Ngày tạo</th>
-                            <th>File</th>
                             <th>Thao Tác</th>
                         </tr>
                     </thead>
@@ -455,8 +477,6 @@ const Import = (props) => {
                                         >
                                             Xem
                                         </Link>
-                                    </td>
-                                    <td>
                                         <button
                                             className="btn-del"
                                             onClick={() => handleDelete(inv.id)}
@@ -470,6 +490,16 @@ const Import = (props) => {
                     </tbody>
                 </table>
             </div>
+            {showQCAll && qcAllResult && (
+                <QualityCheckAll
+                    result={qcAllResult}
+                    onClose={() => setShowQCAll(false)}
+                    onRecheck={async () => {
+                        const result = await props.qualityCheckAll('manual')
+                        if (result.success) setQcAllResult(result.data)
+                    }}
+                />
+            )}
         </div>
     )
 }
@@ -483,5 +513,6 @@ export default connect(mapStateToProps, {
     fetchCompanies,
     fetchInvoices,
     createInvoice,
-    deleteInvoice
+    deleteInvoice,
+    qualityCheckAll,
 })(Import)

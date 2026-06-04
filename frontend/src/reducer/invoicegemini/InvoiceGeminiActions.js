@@ -1,7 +1,8 @@
 import TYPE from '../Type'
 import axios from 'axios'
+import { buildApiUrl } from '../../config/api'
 
-const BASE_URL = 'http://localhost:8000/api/gemini'
+const BASE_URL = buildApiUrl('/api/gemini')
 
 const authHeader = () => ({
     headers: {
@@ -52,5 +53,47 @@ export const deleteGeminiInvoice = (id) => async dispatch => {
         dispatch({ type: TYPE.DELETE_GEMINI_INVOICE_SUCCESS, payload: id })
     } catch {
         dispatch({ type: TYPE.DELETE_GEMINI_INVOICE_FAIL })
+    }
+}
+
+export const qualityCheckGeminiInvoice = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoices-gemini/${id}/quality-check/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const verifyGeminiInvoiceImage = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoices-gemini/${id}/verify/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const createGeminiBatch = (formData) => async dispatch => {
+    try {
+        const res = await axios.post(
+            `${BASE_URL}/invoices-gemini/batch/`,
+            formData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access')}`,
+                    'Content-Type': 'multipart/form-data',
+                }
+            }
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
     }
 }

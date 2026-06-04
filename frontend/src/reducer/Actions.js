@@ -1,5 +1,6 @@
 import TYPE from "./Type"
 import axios from "axios"
+import { buildApiUrl } from "../config/api"
 
 axios.defaults.withCredentials = true
 
@@ -17,7 +18,7 @@ export const login = (email, password) => async dispatch => {
     }
     const body = JSON.stringify({ email, password })
     try {
-        const res = await axios.post("http://localhost:8000/dj-rest-auth/login/", body, config)
+        const res = await axios.post(buildApiUrl("/dj-rest-auth/login/"), body, config)
 
         localStorage.setItem('access', res.data.access)
         localStorage.setItem('refresh_token', res.data.refresh)
@@ -41,7 +42,7 @@ export const refresh = () => async dispatch => {
     }
     try {
         const res = await axios.post(
-            'http://localhost:8000/dj-rest-auth/token/refresh/',
+            buildApiUrl('/dj-rest-auth/token/refresh/'),
             { refresh: refreshToken },
             { headers: { 'Content-Type': 'application/json' } }
         )
@@ -63,7 +64,7 @@ export const verify = () => async dispatch => {
         }
         const body = JSON.stringify({ 'token': localStorage.getItem('access') })
         try {
-            await axios.post('http://localhost:8000/dj-rest-auth/token/verify/', body, config)
+            await axios.post(buildApiUrl('/dj-rest-auth/token/verify/'), body, config)
             dispatch({ type: TYPE.VERIFY_SUCCESS })
         } catch (err) {
             dispatch({ type: TYPE.VERIFY_FAIL })
@@ -83,7 +84,7 @@ export const getUser = () => async dispatch => {
             }
         }
         try {
-            const res = await axios.get('http://localhost:8000/dj-rest-auth/user/', config)
+            const res = await axios.get(buildApiUrl('/dj-rest-auth/user/'), config)
             dispatch({
                 type: TYPE.GET_USER_SUCCESS,
                 payload: res.data
@@ -103,7 +104,7 @@ export const logout = () => async dispatch => {
         }
     }
     try {
-        await axios.post('http://localhost:8000/dj-rest-auth/logout/', config)
+        await axios.post(buildApiUrl('/dj-rest-auth/logout/'), config)
     } catch (err) {}
 
     localStorage.removeItem('access')
@@ -119,7 +120,7 @@ export const googleLogin = (credential) => async dispatch => {
     const body = JSON.stringify({ credential })
     try {
         const res = await axios.post(
-            "http://localhost:8000/api/auth/google/",
+            buildApiUrl('/api/auth/google/'),
             body,
             config
         )

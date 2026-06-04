@@ -50,9 +50,9 @@ const InvoiceReducer = (state = initialState, action) => {
             return { ...state, error: 'xoa hoa don that bai' }
 
         case TYPE.FETCH_INVOICE_DETAIL_SUCCESS:
-            console.log(TYPE.FETCH_INVOICE_DETAIL_SUCCESS)
-            console.log('SUCCESS REDUCER HIT')
-            console.log('PAYLOAD', payload)
+            // console.log(TYPE.FETCH_INVOICE_DETAIL_SUCCESS)
+            // console.log('SUCCESS REDUCER HIT')
+            // console.log('PAYLOAD', payload)
             return { ...state, currentInvoice: payload }
         case TYPE.FETCH_INVOICE_DETAIL_FAIL:
             return { ...state, currentInvoice: null }

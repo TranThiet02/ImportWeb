@@ -1,0 +1,336 @@
+/* ── Overlay ── */
+.qca-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.qca-modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 740px;
+    max-width: 96vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+/* ── Header ── */
+.qca-header {
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #4f6ef7, #2b6cb0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.qca-title    { color: #fff; font-size: 15px; font-weight: 700; display: block; }
+.qca-subtitle { color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 2px; display: block; }
+
+.qca-header-right { display: flex; align-items: center; gap: 10px; }
+
+.qca-btn-recheck {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: #fff;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.qca-btn-recheck:hover    { background: rgba(255,255,255,0.3); }
+.qca-btn-recheck:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.qca-close {
+    background: rgba(255,255,255,0.2);
+    border: none; color: #fff;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Body ── */
+.qca-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* ── Summary Cards ── */
+.qca-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.qca-sum-card {
+    padding: 14px;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.qca-sum-card:hover { transform: translateY(-2px); }
+.qca-sum-card.active { border-color: currentColor; transform: translateY(-2px); }
+
+.qca-sum-card.total   { background: #f8fafc; border-color: #e5e9f0; }
+.qca-sum-card.invalid { background: #fff5f5; }
+.qca-sum-card.warning { background: #fffff0; }
+.qca-sum-card.valid   { background: #f0fff4; }
+
+.qca-sum-card.total.active   { border-color: #4f6ef7; }
+.qca-sum-card.invalid.active { border-color: #c53030; }
+.qca-sum-card.warning.active { border-color: #d69e2e; }
+.qca-sum-card.valid.active   { border-color: #38a169; }
+
+.qca-sum-number {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.qca-sum-card.total   .qca-sum-number { color: #4f6ef7; }
+.qca-sum-card.invalid .qca-sum-number { color: #c53030; }
+.qca-sum-card.warning .qca-sum-number { color: #d69e2e; }
+.qca-sum-card.valid   .qca-sum-number { color: #38a169; }
+
+.qca-sum-label { font-size: 12px; font-weight: 600; color: #6b7280; }
+
+/* ── Filter ── */
+.qca-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.qca-filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9aa5b4;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.qca-filter-btn {
+    background: #f8fafc;
+    border: 1.5px solid #e5e9f0;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.qca-filter-btn:hover  { border-color: #4f6ef7; color: #4f6ef7; }
+.qca-filter-btn.active { background: #4f6ef7; color: #fff; border-color: #4f6ef7; }
+
+/* ── All valid ── */
+.qca-all-valid {
+    text-align: center;
+    padding: 32px;
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.qca-all-valid-icon { font-size: 40px; margin-bottom: 8px; }
+.qca-all-valid-text { font-size: 16px; font-weight: 700; color: #276749; }
+.qca-all-valid-sub  { font-size: 13px; color: #6b7280; margin-top: 4px; }
+
+/* ── List ── */
+.qca-list { display: flex; flex-direction: column; gap: 8px; }
+
+.qca-item {
+    border-radius: 10px;
+    border: 1px solid;
+    overflow: hidden;
+}
+
+.qca-item-valid   { border-color: #9ae6b4; }
+.qca-item-warning { border-color: #faf089; }
+.qca-item-invalid { border-color: #feb2b2; }
+.qca-item-error   { border-color: #e5e9f0; }
+
+/* ── Item header (click to expand) ── */
+.qca-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.qca-item-valid   .qca-item-header { background: #f0fff4; }
+.qca-item-warning .qca-item-header { background: #fffff0; }
+.qca-item-invalid .qca-item-header { background: #fff5f5; }
+.qca-item-error   .qca-item-header { background: #f8fafc; }
+
+.qca-item-valid   .qca-item-header:hover { background: #e6ffed; }
+.qca-item-warning .qca-item-header:hover { background: #fefce0; }
+.qca-item-invalid .qca-item-header:hover { background: #ffe8e8; }
+
+.qca-item-left  { display: flex; align-items: flex-start; gap: 10px; flex: 1; }
+.qca-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.qca-item-status-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+.qca-item-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.qca-item-company { font-size: 14px; font-weight: 700; color: #1a1a2e; }
+
+.qca-source-tag {
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.qca-source-manual { background: #e8f4fd; color: #2b6cb0; }
+.qca-source-ai     { background: #f3e8ff; color: #6b46c1; }
+.qca-source-gemini { background: #fef3c7; color: #92400e; }
+
+.qca-doc-type {
+    font-size: 11px;
+    color: #9aa5b4;
+    font-style: italic;
+}
+
+.qca-item-counts { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.qca-mini-badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.qca-mini-badge.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+.qca-mini-badge.warning { background: #fffff0; color: #744210; border: 1px solid #faf089; }
+.qca-mini-badge.info    { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+.qca-mini-badge.valid   { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+
+.qca-btn-goto {
+    background: #4f6ef7;
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+.qca-btn-goto:hover { background: #3a59e0; }
+
+.qca-expand-icon {
+    font-size: 11px;
+    color: #9aa5b4;
+}
+
+/* ── Item detail (expanded) ── */
+.qca-item-detail {
+    border-top: 1px solid #f0f0f0;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #fff;
+}
+
+.qca-item-ok {
+    color: #276749;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.qca-issue-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.qca-issue-error   { background: #fff5f5; border: 1px solid #feb2b2; }
+.qca-issue-warning { background: #fffff0; border: 1px solid #faf089; }
+.qca-issue-info    { background: #ebf8ff; border: 1px solid #bee3f8; }
+
+.qca-issue-icon    { flex-shrink: 0; font-size: 14px; }
+.qca-issue-content { flex: 1; }
+.qca-issue-msg     { display: block; color: #1a1a2e; font-weight: 500; }
+.qca-issue-suggestion {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+    margin-top: 3px;
+}
+
+/* ── Empty ── */
+.qca-empty {
+    text-align: center;
+    padding: 32px;
+    color: #9aa5b4;
+    font-size: 14px;
+}
+
+.btn-qc-all {
+    background: #6b46c1;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 8px 18px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-qc-all:hover    { background: #553c9a; }
+.btn-qc-all:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* OCR status badge */
+.qca-ocr-badge {
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.qca-ocr-badge.ocr-failed     { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+.qca-ocr-badge.ocr-processing { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+.qca-ocr-badge.ocr-pending    { background: #f8fafc; color: #9aa5b4; border: 1px solid #e5e9f0; }
+
+/* Summary card OCR failed */
+.qca-sum-card.ocr-failed { background: #fff5f5; }
+.qca-sum-card.ocr-failed .qca-sum-number { color: #e53e3e; }

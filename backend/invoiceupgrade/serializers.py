@@ -72,6 +72,7 @@ class InvoiceNewSerializer(serializers.ModelSerializer):
             'file',
             'note',
             'ocr_status',
+            'source',
             'ocr_result',
             'detail_data',
             'vat_detail',

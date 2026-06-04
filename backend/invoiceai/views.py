@@ -8,6 +8,9 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from invoiceupgrade.models import InvoiceNew, Company
 from invoiceupgrade.serializers import InvoiceNewSerializer
 from .tasks import run_ocr_task
+from invoiceupgrade.quality_checker import run_quality_check
+from invoiceupgrade.image_verifier import run_image_verification
+
 
 DECIMAL_FIELDS = [
     'total_amount', 'subtotal', 'total_discount',
@@ -135,8 +138,19 @@ def invoice_ai_detail(request, pk):
 
         serializer = InvoiceNewSerializer(invoice, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            updated_invoice = serializer.save()
+            if updated_invoice.ocr_status in ['failed', 'pending']:
+                updated_invoice.ocr_status = 'done'
+                current_result = updated_invoice.ocr_result or {}
+                updated_invoice.ocr_result = {
+                    **current_result,
+                    'auto_saved': True,
+                    'progress': 'Đã sửa thủ công',
+                    'percent': 100,
+                    'manual_edit': True,
+                }
+                updated_invoice.save()
+            return Response(InvoiceNewSerializer(updated_invoice).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
@@ -144,3 +158,83 @@ def invoice_ai_detail(request, pk):
             os.remove(invoice.file.path)
         invoice.delete()
         return Response({'message': 'Xóa thành công'}, status=204)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def quality_check_ai(request, pk):
+    try:
+        InvoiceNew.objects.get(pk=pk, uploaded_by=request.user)
+    except InvoiceNew.DoesNotExist:
+        return Response({'error': 'Không tìm thấy'}, status=404)
+
+    try:
+        result = run_quality_check(pk, request.user)
+        return Response(result)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def verify_ai_image(request, pk):
+    try:
+        InvoiceNew.objects.get(pk=pk, uploaded_by=request.user)
+    except InvoiceNew.DoesNotExist:
+        return Response({'error': 'Không tìm thấy'}, status=404)
+    try:
+        result = run_image_verification(pk, request.user)
+        return Response(result)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def invoice_ai_batch(request):
+    files = request.FILES.getlist('files')
+    document_type = request.data.get('document_type', 'invoice')
+    note = request.data.get('note', '')
+
+    if not files:
+        return Response({'error': 'Không có file nào'}, status=400)
+    if len(files) > 5:
+        return Response({'error': 'Tối đa 5 file'}, status=400)
+
+    created = []
+    errors  = []
+
+    for file in files:
+        allowed = ['application/pdf', 'image/jpeg', 'image/png']
+        if file.content_type not in allowed:
+            errors.append({'file': file.name, 'error': 'Định dạng không hỗ trợ'})
+            continue
+        if file.size > 10 * 1024 * 1024:
+            errors.append({'file': file.name, 'error': 'File > 10MB'})
+            continue
+
+        serializer = InvoiceNewSerializer(data={
+            'file': file,
+            'document_type': document_type,
+            'note': note,
+            'detail_data': {},
+            'source': 'ai',
+        })
+
+        if serializer.is_valid():
+            invoice = serializer.save(uploaded_by=request.user)
+            run_ocr_task.delay(invoice.id)
+            created.append({
+                'id': invoice.id,
+                'file_name': file.name,
+                'status': 'processing',
+            })
+        else:
+            errors.append({'file': file.name, 'error': str(serializer.errors)})
+
+    return Response({
+        'created': created,
+        'errors': errors,
+        'total': len(files),
+        'success': len(created),
+        'failed': len(errors),
+    }, status=201)

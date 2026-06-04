@@ -1,0 +1,183 @@
+.qc-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.qc-modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 580px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+/* Header */
+.qc-header {
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 16px 16px 0 0;
+}
+
+.qc-header-valid   { background: linear-gradient(135deg, #48bb78, #38a169); color: #fff; }
+.qc-header-warning { background: linear-gradient(135deg, #ecc94b, #d69e2e); color: #fff; }
+.qc-header-invalid { background: linear-gradient(135deg, #fc8181, #e53e3e); color: #fff; }
+
+.qc-title { font-size: 15px; font-weight: 700; }
+
+.qc-close {
+    background: rgba(255,255,255,0.2);
+    border: none; color: #fff;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    cursor: pointer; font-size: 14px;
+}
+
+/* Body */
+.qc-body { padding: 20px 24px; }
+
+/* Status Banner */
+.qc-status-banner {
+    padding: 14px 16px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.qc-status-valid   { background: #f0fff4; border: 1px solid #9ae6b4; }
+.qc-status-warning { background: #fffff0; border: 1px solid #faf089; }
+.qc-status-invalid { background: #fff5f5; border: 1px solid #feb2b2; }
+
+.qc-status-label {
+    font-size: 14px;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 8px;
+    color: #1a1a2e;
+}
+
+.qc-summary-counts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.qc-count {
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qc-count.error   { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+.qc-count.warning { background: #fffff0; color: #744210; border: 1px solid #faf089; }
+.qc-count.info    { background: #ebf8ff; color: #2b6cb0; border: 1px solid #bee3f8; }
+.qc-count.valid   { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+
+/* Section */
+.qc-section { margin-bottom: 20px; }
+
+.qc-section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.qc-section-title.error   { color: #c53030; }
+.qc-section-title.warning { color: #744210; }
+.qc-section-title.info    { color: #2b6cb0; }
+
+/* Issue Card */
+.qc-issue {
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid;
+}
+
+.qc-issue-error   { background: #fff5f5; border-color: #feb2b2; }
+.qc-issue-warning { background: #fffff0; border-color: #faf089; }
+.qc-issue-info    { background: #ebf8ff; border-color: #bee3f8; }
+
+.qc-issue-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 14px;
+    color: #1a1a2e;
+    font-weight: 500;
+}
+
+.qc-issue-icon { font-size: 15px; flex-shrink: 0; }
+
+.qc-issue-suggestion {
+    margin-top: 6px;
+    margin-left: 23px;
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* All good */
+.qc-all-good {
+    text-align: center;
+    padding: 32px;
+    background: #f0fff4;
+    border-radius: 12px;
+    border: 1px solid #9ae6b4;
+    margin-bottom: 20px;
+}
+
+.qc-all-good-icon { font-size: 40px; margin-bottom: 8px; }
+.qc-all-good-text { font-size: 16px; font-weight: 700; color: #276749; }
+.qc-all-good-sub  { font-size: 13px; color: #6b7280; margin-top: 4px; }
+
+/* Actions */
+.qc-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.qc-btn-close {
+    background: #fff;
+    border: 1.5px solid #e5e9f0;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.qc-btn-close:hover { border-color: #4f6ef7; color: #4f6ef7; }
+
+.qc-btn-save {
+    background: #4f6ef7;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.qc-btn-save:hover { background: #3a59e0; }

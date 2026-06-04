@@ -1,7 +1,8 @@
 import TYPE from '../Type'
 import axios from 'axios'
+import { buildApiUrl } from '../../config/api'
 
-const BASE_URL = 'http://localhost:8000/userup'
+const BASE_URL = buildApiUrl('/userup')
 
 const authHeader = () => ({
     headers: {
@@ -14,7 +15,7 @@ const refreshAccessToken = async () => {
     if (!refreshToken) return null
     try {
         const res = await axios.post(
-            'http://localhost:8000/dj-rest-auth/token/refresh/',
+            buildApiUrl('/dj-rest-auth/token/refresh/'),
             { refresh: refreshToken },
             { headers: { 'Content-Type': 'application/json' } }
         )
@@ -130,6 +131,55 @@ export const updateInvoiceDetail = (id, formData) => async dispatch => {
         return { success: true }
     } catch (err) {
         dispatch({ type: TYPE.UPDATE_INVOICE_FAIL })
+        return { success: false, error: err.response?.data }
+    }
+}
+
+// export const auditInvoice = (id) => async dispatch => {
+//     try {
+//         const res = await axios.get(
+//             `${BASE_URL}/invoicesup/${id}/audit/`,
+//             authHeader()
+//         )
+//         return { success: true, data: res.data }
+//     } catch (err) {
+//         return { success: false, error: err.response?.data }
+//     }
+// }
+
+export const qualityCheckInvoice = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoicesup/${id}/quality-check/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const verifyInvoiceImage = (id) => async dispatch => {
+    try {
+        const res = await axios.get(
+            `${BASE_URL}/invoicesup/${id}/verify/`,
+            authHeader()
+        )
+        return { success: true, data: res.data }
+    } catch (err) {
+        return { success: false, error: err.response?.data }
+    }
+}
+
+export const qualityCheckAll = (source = null) => async dispatch => {
+    try {
+        const url = source
+            ? `${BASE_URL}/invoicesup/quality-check-all/?source=${source}`
+            : `${BASE_URL}/invoicesup/quality-check-all/`
+
+        const res = await axios.get(url, authHeader())
+        return { success: true, data: res.data }
+    } catch (err) {
         return { success: false, error: err.response?.data }
     }
 }

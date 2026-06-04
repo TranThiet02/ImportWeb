@@ -3,6 +3,17 @@ import { connect } from 'react-redux'
 import { useParams, useNavigate } from 'react-router-dom'
 import { fetchInvoiceById, updateInvoiceDetail, updateInvoice } from '../../reducer/invoicesupgrade/InvoiceActions'
 import '../../css/ImportDetail.css'
+// import AuditResult from '../../component/AuditResult'
+// import { auditInvoice } from '../../reducer/invoicesupgrade/InvoiceActions'
+import QualityResult from '../../component/QualityResult'
+import { qualityCheckInvoice } from '../../reducer/invoicesupgrade/InvoiceActions'
+import { qualityCheckAIInvoice } from '../../reducer/invoiceai/InvoiceAIActions'
+import { qualityCheckGeminiInvoice } from '../../reducer/invoicegemini/InvoiceGeminiActions'
+import { buildMediaUrl } from '../../config/api'
+import VerifyResult from '../../component/VerifyResult'
+import { verifyInvoiceImage } from '../../reducer/invoicesupgrade/InvoiceActions'
+import { verifyAIInvoiceImage } from '../../reducer/invoiceai/InvoiceAIActions'
+import { verifyGeminiInvoiceImage } from '../../reducer/invoicegemini/InvoiceGeminiActions'
 
 const DOCUMENT_TYPES = [
     { value: 'invoice', label: 'Hóa đơn VAT' },
@@ -13,15 +24,15 @@ const DOCUMENT_TYPES = [
 
 const DETAIL_FIELDS = {
     invoice: [
-        { name: 'invoice_date',   label: 'Ngày',            type: 'date'   },
-        { name: 'seller_name',    label: 'Tên cửa hàng',    type: 'text'   },
+        { name: 'invoice_date', label: 'Ngày', type: 'date'   },
+        { name: 'seller_name', label: 'Tên cửa hàng',    type: 'text'   },
         { name: 'payment_method', label: 'Phương thức TT',  type: 'text'   },
-        { name: 'subtotal',       label: 'Tạm tính',        type: 'number' },
+        { name: 'subtotal', label: 'Tạm tính', type: 'number' },
         { name: 'total_discount', label: 'Tổng giảm giá',   type: 'number' },
-        { name: 'tax_amount',     label: 'Thuế',            type: 'number' },
-        { name: 'total_amount',   label: 'Tổng tiền',       type: 'number' },
+        { name: 'tax_amount', label: 'Thuế', type: 'number' },
+        { name: 'total_amount', label: 'Tổng tiền', type: 'number' },
         { name: 'received_amount',label: 'Tiền khách đưa',  type: 'number' },
-        { name: 'change_amount',  label: 'Tiền thừa',       type: 'number' },
+        { name: 'change_amount', label: 'Tiền thừa', type: 'number' },
     ],
     receipt: [
         { name: 'invoice_code', label: 'Số phiếu', type: 'text'   },
@@ -79,7 +90,6 @@ const InvoiceDetail = (props) => {
     const { id } = useParams()
     const navigate = useNavigate()
     const { currentInvoice } = props
-    console.log(props)
 
     const [companyName, setCompanyName] = useState('')
     const [detailData, setDetailData] = useState({})
@@ -88,6 +98,149 @@ const InvoiceDetail = (props) => {
     const [submitting, setSubmitting] = useState(false)
     const [message, setMessage] = useState({ text: '', type: '' })
     const [loading, setLoading] = useState(true)
+    const [qcResult, setQcResult] = useState(null)
+    const [checking,  setChecking] = useState(false)
+    const [showQC, setShowQC] = useState(false)
+    const [verifyResult, setVerifyResult] = useState(null)
+    const [verifying, setVerifying] = useState(false)
+    const [showVerify, setShowVerify] = useState(false)
+
+    const getVerifyAction = () => {
+        const source = currentInvoice?.source
+        if (source === 'ai') return props.verifyAIInvoiceImage
+        if (source === 'gemini') return props.verifyGeminiInvoiceImage
+        return props.verifyInvoiceImage
+    }
+
+    const handleVerify = async () => {
+        setVerifying(true)
+        const action = getVerifyAction()
+        const result = await action(id)
+        setVerifying(false)
+        if (result.success) {
+            setVerifyResult(result.data)
+            setShowVerify(true)
+        }
+    }
+
+    const handleFixField = (field, valueFromImage) => {
+        setDetailData(prev => ({
+            ...prev,
+            [field]: valueFromImage
+        }))
+        setShowVerify(false)
+        setMessage({
+            text: `Đã cập nhật "${field}" từ ảnh gốc. Nhớ bấm Lưu!`,
+            type: 'success'
+        })
+    }
+
+    useEffect(() => {
+        if (!currentInvoice) return
+
+        if (currentInvoice.ocr_result?.manual_edit) {
+            setQcResult(null)
+            setShowQC(false)
+            return
+        }
+
+        // Nếu OCR có kết quả từ background task
+        const ocr_result = currentInvoice.ocr_result
+        if (ocr_result?.quality) {
+            setQcResult(ocr_result.quality)
+            if (ocr_result.quality.status === 'invalid') {
+                setShowQC(true)
+            }
+        } else {
+            // Không có kết quả sẵn chạy QC lần đầu
+            handleQualityCheck()
+        }
+    }, [currentInvoice])
+
+    const getQualityCheckAction = () => {
+        const source = currentInvoice?.source
+        if (source === 'ai') return props.qualityCheckAIInvoice
+        if (source === 'gemini') return props.qualityCheckGeminiInvoice
+        return props.qualityCheckInvoice
+    }
+
+    const handleQualityCheck = async () => {
+        setChecking(true)
+        const action = getQualityCheckAction()
+        const result = await action(id)
+        setChecking(false)
+        if (result.success) {
+            setQcResult(result.data)
+        }
+    }
+
+    const handleSave = async () => {
+        setSubmitting(true)
+        const docType = currentInvoice.document_type
+        const hasItems = docType === 'invoice' || docType === 'warehouse'
+
+        const cleanItems = items
+            .filter(item => item.item_name.trim() !== '')
+            .map(item => ({
+                ...item,
+                quantity: item.quantity || 0,
+                unit_price: item.unit_price || 0,
+                total_price: item.total_price || 0,
+                tax_rate: item.tax_rate || 0,
+            }))
+
+        const finalDetail = hasItems
+            ? { ...detailData, items: cleanItems }
+            : { ...detailData }
+
+        const formData = new FormData()
+        formData.append('document_type', docType)
+        formData.append('company_name', companyName)
+        formData.append('note', note)
+        formData.append('detail_data', JSON.stringify(finalDetail))
+
+        const saveResult = await props.updateInvoice(id, formData)
+        setSubmitting(false)
+
+        if (!saveResult.success) {
+            setMessage({ text: 'Cập nhật thất bại!', type: 'error' })
+            return
+        }
+
+        setMessage({ text: 'Cập nhật thành công!', type: 'success' })
+
+        await props.fetchInvoiceById(id)
+
+        setTimeout(async () => {
+            const action = getQualityCheckAction()
+            const result = await action(id)
+            if (result.success) {
+                setQcResult(result.data)
+                if (result.data.status === 'invalid') {
+                    setShowQC(true)
+                    setMessage({
+                        text: 'Đã lưu nhưng vẫn còn lỗi dữ liệu!',
+                        type: 'warning'
+                    })
+                } else {
+                    setShowQC(false)
+                }
+            }
+        }, 500)
+    }
+    // const [auditResult, setAuditResult] = useState(null)
+    // const [auditing, setAuditing] = useState(false)
+    // const [showAudit, setShowAudit] = useState(false)
+
+    // const handleAudit = async () => {
+    //     setAuditing(true)
+    //     const result = await props.auditInvoice(id)
+    //     setAuditing(false)
+    //     if (result.success) {
+    //         setAuditResult(result.data)
+    //         setShowAudit(true)
+    //     }
+    // }
 
     useEffect(() => {
         const load = async () => {
@@ -95,8 +248,8 @@ const InvoiceDetail = (props) => {
             await props.fetchInvoiceById(id)
             // const result = await props.fetchInvoiceById(id)
             setLoading(false)
-            console.log('loading', loading)
-            console.log('currentInvoice', currentInvoice)
+            // console.log('loading', loading)
+            // console.log('currentInvoice', currentInvoice)
         }
         load()
     }, [id])
@@ -146,41 +299,41 @@ const InvoiceDetail = (props) => {
     const addItem = () => setItems([...items, { ...DEFAULT_ITEM }])
     const removeItem = (index) => setItems(items.filter((_, i) => i !== index))
 
-    const handleSubmit = async () => {
-        const docType = currentInvoice.document_type
-        const hasItems = docType === 'invoice' || docType === 'warehouse'
+    // const handleSubmit = async () => {
+    //     const docType = currentInvoice.document_type
+    //     const hasItems = docType === 'invoice' || docType === 'warehouse'
 
-        const cleanItems = items
-        .filter(item => item.item_name.trim() !== '')
-        .map(item => ({
-            ...item,
-            quantity: item.quantity || 0,
-            unit_price: item.unit_price || 0,
-            total_price: item.total_price || 0,
-            tax_rate: item.tax_rate || 0,
-        }))
+    //     const cleanItems = items
+    //     .filter(item => item.item_name.trim() !== '')
+    //     .map(item => ({
+    //         ...item,
+    //         quantity: item.quantity || 0,
+    //         unit_price: item.unit_price || 0,
+    //         total_price: item.total_price || 0,
+    //         tax_rate: item.tax_rate || 0,
+    //     }))
 
-        const finalDetail = hasItems
-            ? { ...detailData, items: cleanItems }
-            : { ...detailData }
+    //     const finalDetail = hasItems
+    //         ? { ...detailData, items: cleanItems }
+    //         : { ...detailData }
 
-        const formData = new FormData()
-        formData.append('document_type', docType)
-        formData.append('company_name', companyName)
-        formData.append('note', note)
-        formData.append('detail_data', JSON.stringify(finalDetail))
+    //     const formData = new FormData()
+    //     formData.append('document_type', docType)
+    //     formData.append('company_name', companyName)
+    //     formData.append('note', note)
+    //     formData.append('detail_data', JSON.stringify(finalDetail))
 
-        setSubmitting(true)
-        const result = await props.updateInvoice(id, formData)
-        setSubmitting(false)
+    //     setSubmitting(true)
+    //     const result = await props.updateInvoice(id, formData)
+    //     setSubmitting(false)
 
-        if (result.success) {
-            setMessage({ text: 'Cập nhật thành công!', type: 'success' })
-            await props.fetchInvoiceById(id)
-        } else {
-            setMessage({ text: 'Cập nhật thất bại!', type: 'error' })
-        }
-    }
+    //     if (result.success) {
+    //         setMessage({ text: 'Cập nhật thành công!', type: 'success' })
+    //         await props.fetchInvoiceById(id)
+    //     } else {
+    //         setMessage({ text: 'Cập nhật thất bại!', type: 'error' })
+    //     }
+    // }
 
     if (loading) return (
         <div className="detail-loading">
@@ -197,22 +350,15 @@ const InvoiceDetail = (props) => {
 
     const docType = currentInvoice.document_type
     const hasItems = docType === 'invoice' || docType === 'warehouse'
-    const fileUrl = `http://localhost:8000${currentInvoice.file}`
+    const fileUrl = buildMediaUrl(currentInvoice.file)
     const isPdf = currentInvoice.file?.toLowerCase().includes('.pdf')
-
-    console.log('currentInvoice', currentInvoice)
-    console.log('docType', docType)
-    console.log('fileUrl', fileUrl)
-    console.log('isPdf', isPdf)
-    console.log('detailData', detailData)
-    console.log('items', items)
 
     return (
         <div className="detail-page">
             <div className="detail-header">
                 <div className="detail-header-left">
                     <button className="btn-back" onClick={() => navigate('/import')}>
-                        ← Quay lại
+                        Quay lại
                     </button>
                     <span className="detail-title">
                         Chi Tiết <span>#{id}</span>
@@ -223,11 +369,53 @@ const InvoiceDetail = (props) => {
                     <span className={`detail-ocr-badge ${currentInvoice.ocr_status}`}>
                         {currentInvoice.ocr_status}
                     </span>
+                    {/* {auditResult && (
+                        <span
+                            className={`audit-mini-badge audit-mini-${auditResult.risk_score.color}`}
+                            onClick={() => setShowAudit(true)}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            Risk: {auditResult.risk_score.score}/100
+                        </span>
+                    )} */}
+                    {qcResult && (
+                        <span
+                            className={`qc-mini-badge qc-mini-${qcResult.status}`}
+                            onClick={() => setShowQC(true)}
+                            style={{ cursor: 'pointer' }}
+                            title="Xem chi tiết kiểm tra"
+                        >
+                            {qcResult.status === 'valid'   && 'Hợp lệ'}
+                            {qcResult.status === 'warning' && `${qcResult.summary.warnings} cảnh báo`}
+                            {qcResult.status === 'invalid' && `${qcResult.summary.errors} lỗi`}
+                        </span>
+                    )}
                 </div>
                 <div className="detail-header-right">
+                    {/* <button
+                        className="btn-audit"
+                        onClick={handleAudit}
+                        disabled={auditing}
+                    >
+                        {auditing ? 'Đang phân tích...' : 'AI Audit'}
+                    </button> */}
+                    <button
+                        className="btn-verify"
+                        onClick={handleVerify}
+                        disabled={verifying}
+                    >
+                        {verifying ? 'Đang xác minh...' : 'Xác minh ảnh'}
+                    </button>
+                    <button
+                        className="btn-quality-check"
+                        onClick={() => { handleQualityCheck(); setShowQC(true) }}
+                        disabled={checking}
+                    >
+                        {checking ? 'Đang kiểm tra...' : 'Kiểm tra'}
+                    </button>
                     <button
                         className="btn-save"
-                        onClick={handleSubmit}
+                        onClick={handleSave}
                         disabled={submitting}
                     >
                         {submitting ? 'Đang lưu...' : 'Lưu'}
@@ -356,6 +544,30 @@ const InvoiceDetail = (props) => {
                     </div>
                 </div>
             </div>
+            {/* {showAudit && auditResult && (
+                <AuditResult
+                    result={auditResult}
+                    onClose={() => setShowAudit(false)}
+                />
+            )} */}
+            {/* Modal Quality Check */}
+            {showQC && qcResult && (
+                <QualityResult
+                    result={qcResult}
+                    onClose={() => setShowQC(false)}
+                    onSave={qcResult.can_save ? async () => {
+                        setShowQC(false)
+                        await handleSave()
+                    } : null}
+                />
+            )}
+            {showVerify && verifyResult && (
+                <VerifyResult
+                    result={verifyResult}
+                    onClose={() => setShowVerify(false)}
+                    onFixField={handleFixField}
+                />
+            )}
         </div>
     )
 }
@@ -368,4 +580,11 @@ export default connect(mapStateToProps, {
     fetchInvoiceById,
     updateInvoice,
     updateInvoiceDetail,
+    // auditInvoice,
+    qualityCheckInvoice,
+    qualityCheckAIInvoice,
+    qualityCheckGeminiInvoice,
+    verifyInvoiceImage,
+    verifyAIInvoiceImage,
+    verifyGeminiInvoiceImage,
 })(InvoiceDetail)
