@@ -8,6 +8,7 @@ import ConfidenceBadge from '../../component/ConfidenceBadge'
 import QualityCheckAll from '../../component/QualityCheckAll'
 import { qualityCheckAll } from '../../reducer/invoicesupgrade/InvoiceActions'
 import BatchUpload from '../../component/BatchUpload'
+import InvoiceCard from '../../component/InvoiceCard'
 
 const ImportAI = (props) => {
     const { aiInvoices } = props
@@ -206,7 +207,7 @@ const ImportAI = (props) => {
                     </span>
                     <span className="import-status-badge">YOLO + EassyOCR</span>
                 </div>
-                <div className="import-header-right">
+                <div className="import-header-right ai-header-actions">
                     <button
                         className={`btn-batch ${showBatch ? 'active' : ''}`}
                         onClick={() => setShowBatch(prev => !prev)}
@@ -405,6 +406,16 @@ const ImportAI = (props) => {
                         )}
                     </tbody>
                 </table>
+                <div className="import-card-list">
+                    {aiInvoices.map(inv => (
+                        <InvoiceCard
+                            key={inv.id}
+                            inv={inv}
+                            onDelete={handleDelete}
+                            getOcrBadge={getOcrBadge}
+                        />
+                    ))}
+                </div>
             </div>
             {showQCAll && qcAllResult && (
                 <QualityCheckAll

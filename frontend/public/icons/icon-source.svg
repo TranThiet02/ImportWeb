@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#7c3aed"/>
+
+  <!-- Shield icon -->
+  <path d="M256 80
+    C256 80 160 120 120 160
+    C120 280 160 380 256 440
+    C352 380 392 280 392 160
+    C352 120 256 80 256 80Z"
+    fill="white" opacity="0.15"/>
+
+  <path d="M256 100
+    C256 100 168 136 132 172
+    C132 284 168 376 256 432
+    C344 376 380 284 380 172
+    C344 136 256 100 256 100Z"
+    fill="none" stroke="white" stroke-width="12" stroke-linejoin="round"/>
+
+  <!-- Checkmark -->
+  <polyline points="192,256 232,296 320,208"
+    fill="none" stroke="white" stroke-width="20"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- App name -->
+  <text x="256" y="488" text-anchor="middle"
+    font-family="Arial, sans-serif" font-size="40"
+    font-weight="bold" fill="white" opacity="0.9">
+    Y Insurance
+  </text>
+</svg>

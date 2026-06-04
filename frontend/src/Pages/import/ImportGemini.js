@@ -9,6 +9,7 @@ import QualityCheckAll from '../../component/QualityCheckAll'
 import { qualityCheckAIInvoice } from '../../reducer/invoiceai/InvoiceAIActions'
 import { qualityCheckAll } from '../../reducer/invoicesupgrade/InvoiceActions'
 import BatchUpload from '../../component/BatchUpload'
+import InvoiceCard from '../../component/InvoiceCard'
 
 const DOCUMENT_TYPES = [
     { value: 'invoice', label: 'Hóa đơn' },
@@ -300,6 +301,17 @@ const ImportGemini = (props) => {
                         </div>
                     </div>
                 </div>
+                {showBatch ? (
+                    <BatchUpload
+                        source="gemini"
+                        onBatchSubmit={props.createGeminiBatch}
+                        fetchInvoices={props.fetchGeminiInvoices}
+                        pollStatus={props.fetchGeminiOcrStatus}
+                        onComplete={() => props.fetchGeminiInvoices()}
+                    />
+                ) : (
+                    <div className="import-card">...</div>
+                )}
             </div>
 
             {/* ── Danh sách ── */}
@@ -324,17 +336,6 @@ const ImportGemini = (props) => {
                         </span>
                     </div>
                 </div>
-                {showBatch ? (
-                    <BatchUpload
-                        source="gemini"
-                        onBatchSubmit={props.createGeminiBatch}
-                        fetchInvoices={props.fetchGeminiInvoices}
-                        pollStatus={props.fetchGeminiOcrStatus}
-                        onComplete={() => props.fetchGeminiInvoices()}
-                    />
-                ) : (
-                    <div className="import-card">...</div>
-                )}
                 <table className="import-table">
                     <thead>
                         <tr>
@@ -413,6 +414,16 @@ const ImportGemini = (props) => {
                         )}
                     </tbody>
                 </table>
+                <div className="import-card-list">
+                    {geminiInvoices.map(inv => (
+                        <InvoiceCard
+                            key={inv.id}
+                            inv={inv}
+                            onDelete={handleDelete}
+                            getOcrBadge={getOcrBadge}
+                        />
+                    ))}
+                </div>
             </div>
             {showQCAll && qcAllResult && (
                 <QualityCheckAll

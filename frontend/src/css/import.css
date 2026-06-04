@@ -641,3 +641,45 @@
     color: #6b7280;
     line-height: 1.8;
 }
+
+@media (max-width:768px){
+
+    .upload-preview{
+        min-height:300px !important;
+    }
+
+    .upload-preview iframe{
+        height:400px !important;
+    }
+
+    .upload-preview img{
+        max-height:400px !important;
+    }
+
+}
+
+@media (max-width:768px){
+
+    .items-section{
+        overflow-x:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .item-row-invoice,
+    .item-row-warehouse{
+        min-width:850px;
+    }
+
+}
+
+@media (max-width:768px){
+
+    .import-table-card{
+        overflow-x:auto;
+    }
+
+    .import-table{
+        min-width:900px;
+    }
+
+}

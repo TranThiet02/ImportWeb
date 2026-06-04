@@ -6,6 +6,7 @@ import { Provider } from 'react-redux';
 import Store from "./Store";
 import Home from './Pages/index/Home'
 import './css/main.css'
+import './css/mobile.css'
 import PrivateRoute from "./component/PrivateRoute";
 import ImportNew from "./Pages/import/ImportNew";
 import InvoiceDetail from "./Pages/invoice/InvoiceDetail";
